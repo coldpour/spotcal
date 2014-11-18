@@ -18,20 +18,51 @@ var parseHtml = function(html, options) {
     if(!startPattern) return "";
     var endPattern = options.endPattern;
     if(!endPattern) return "";
-
-    var startIndex = html.indexOf(startPattern);
-    if(-1 === startIndex) return "";
-    var endIndex = html.indexOf(endPattern, startIndex + 1);
-    if(-1 === endIndex) endIndex = html.length;
-
     var removePattern = options.removePattern;
-    if (removePattern) {
-        startIndex += removePattern.length;
-    } else {
-        startIndex += startPattern.length;
-    }
+    var startOccurance = options.startOccurance;
 
-    return trim(html.substring(startIndex, endIndex));
+    var startIndex = html.indexOf(startPattern, 0);
+    var _handleRemovePattern = function() {
+        if (removePattern) {
+            startIndex += removePattern.length;
+        } else {
+            startIndex += startPattern.length;
+        }
+        return startIndex;
+    };
+
+    var endIndex;
+    var _findEndIndex = function() {
+        var endIndex = html.indexOf(endPattern, startIndex + 1);
+        if(-1 === endIndex) endIndex = html.length;
+        return endIndex;
+    };
+
+    var _cleanSubstring = function() {
+        return trim(html.substring(startIndex, endIndex));
+    };
+
+    if(options.multiple) {
+        var arr = [];
+        var occurance = 0;
+
+        while(startIndex > -1){
+            occurance++;
+            startIndex = _handleRemovePattern();
+            endIndex = _findEndIndex();
+            if(!startOccurance || occurance >= startOccurance) {
+                arr.push(_cleanSubstring());
+            }
+            startIndex = html.indexOf(startPattern, endIndex);
+        }
+        return arr;
+    } else {
+        if(-1 === startIndex) return "";
+        startIndex = _handleRemovePattern();
+        endIndex = _findEndIndex();
+
+        return _cleanSubstring();
+    }
 };
 
 var parseWorkshopInfo = function(html) {
@@ -49,32 +80,30 @@ var parseWorkshopInfo = function(html) {
                                      , endPattern:'<br />'
                                      , removePattern:'<br />\n'});
 
+    var when = parseHtml(html, {startPattern:'<br />'
+                                , endPattern:'<br />'
+                                , multiple:true
+                                , startOccurance:3});
+
     workshop.title = title;
     workshop.description = description + " " + presenter + ".";
     if (classSize) {
         workshop.description += " " + classSize;
     }
+    workshop.when = when;
 //    workshop.html = html;
     return workshop;
 };
 
-var parseWorkshops = function(html) {
-    var workshops = [];
-    var cellStartPattern = '<td>';
-    var titleStartPattern = '<strong>';
-    var startPattern = cellStartPattern + titleStartPattern;
-    var endPattern = '</td>';
-    var startIndex = html.indexOf(startPattern, 0);
-
-    while( startIndex > -1 ){
-        startIndex += cellStartPattern.length;
-        var endIndex = html.indexOf(endPattern, startIndex);
-        var rawWorkshop = html.substring(startIndex, endIndex);
-        var workshop = parseWorkshopInfo(rawWorkshop);
-        workshops.push(workshop);
-        startIndex = html.indexOf(startPattern, endIndex);
+var map = function(list, callback) {
+    var i = 0;
+    var i_end = list.length;
+    var new_list = [];
+    while(i < i_end) {
+        new_list.push(callback(list[i]));
+        i++;
     }
-    return workshops;
+    return new_list;
 };
 
 http.get(url, function(response) {
@@ -83,9 +112,11 @@ http.get(url, function(response) {
             return console.error(err);
         }
         var xml = data.toString();
-        xml = removeFirstLine(xml);
-//        console.log(xml);
-        var workshops = parseWorkshops(xml);
+        var rawWorkshops = parseHtml(xml, {startPattern:'<td><strong>'
+                                        , endPattern:'</td>'
+                                        , removePattern:'<td>'
+                                        , multiple:true});
+        var workshops = map(rawWorkshops, parseWorkshopInfo);
         console.log(workshops);
         return xml;
     }));
