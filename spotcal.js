@@ -10,6 +10,7 @@ var removeFirstLine = function(str) {
 };
 
 var trim = function(str) {
+    str = str.replace(/&amp;/, '&');
     return str.replace(/^[ \n]/, '');
 };
 
@@ -67,31 +68,38 @@ var parseHtml = function(html, options) {
 
 var parseWorkshopInfo = function(html) {
     var workshop = {};
+    html = html.replace(/\n/g, '');
+    html = html.replace(/<\/?a[^>]*>/g, '');
+
     var title = parseHtml(html, {startPattern: '<strong>'
                                  , endPattern:'</strong>'});
+    html = html.replace(/<strong>.*<\/strong>/, '');
+
+    var whoAndWhen = parseHtml(html, {startPattern:'<em>'
+                                , endPattern:'</em>'});
+    whoAndWhen = whoAndWhen.split('<br />');
+    html = html.replace(/<em>.*<\/em>/, '');
 
     var description = parseHtml(html, {startPattern:'<br />'
                                        , endPattern:'<br />'});
+    html = html.replace(/<br \/>.*<br \/>/, '');
 
-    var presenter = parseHtml(html, {startPattern:'<em>'
-                                     , endPattern:'<br />'});
+    // var presenter = parseHtml(html, {startPattern:'<em>'
+    //                                  , endPattern:'<br />'});
 
-    var classSize = parseHtml(html, {startPattern:'<br />\nTarget'
-                                     , endPattern:'<br />'
-                                     , removePattern:'<br />\n'});
-
-    var when = parseHtml(html, {startPattern:'<br />'
-                                , endPattern:'<br />'
-                                , multiple:true
-                                , startOccurance:3});
+    // var classSize = parseHtml(html, {startPattern:'<br />\nTarget'
+    //                                  , endPattern:'<br />'
+    //                                  , removePattern:'<br />\n'});
 
     workshop.title = title;
-    workshop.description = description + " " + presenter + ".";
-    if (classSize) {
-        workshop.description += " " + classSize;
-    }
-    workshop.when = when;
-//    workshop.html = html;
+    workshop.description = description;
+
+
+    workshop.whoAndWhen = whoAndWhen;
+    // if (classSize) {
+    //     workshop.description += " " + classSize;
+    // }
+    // workshop.when = when;
     return workshop;
 };
 
