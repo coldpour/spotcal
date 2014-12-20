@@ -1,18 +1,10 @@
 var http = require('http');
 var bl = require('bl');
 var parseString = require('xml2js').parseString;
+var map = require('./map');
+var scrub = require('./scrub');
 
 var url = 'http://thespotgym.com/events/free-member-workshops/';
-
-var removeFirstLine = function(str) {
-    var indexOfSecondLine = str.indexOf('\n')+1;
-    return str.substring(indexOfSecondLine, str.length);
-};
-
-var trim = function(str) {
-    str = str.replace(/&amp;/, '&');
-    return str.replace(/^[ \n]/, '');
-};
 
 var parseHtml = function(html, options) {
     var startPattern = options.startPattern;
@@ -40,7 +32,7 @@ var parseHtml = function(html, options) {
     };
 
     var _cleanSubstring = function() {
-        return trim(html.substring(startIndex, endIndex));
+        return scrub(html.substring(startIndex, endIndex));
     };
 
     if(options.multiple) {
@@ -66,10 +58,20 @@ var parseHtml = function(html, options) {
     }
 };
 
+var removeNewlines = function(str) {
+    return str.replace(/\n/g, '');
+};
+
+var removeAnchorTags = function(str) {
+    return str.replace(/<\/?a[^>]*>/g, '');
+};
+
 var parseWorkshopInfo = function(html) {
     var workshop = {};
-    html = html.replace(/\n/g, '');
-    html = html.replace(/<\/?a[^>]*>/g, '');
+    html = removeNewlines(html);
+    html = removeAnchorTags(html);
+
+    workshop.origHtml = html;
 
     var title = parseHtml(html, {startPattern: '<strong>'
                                  , endPattern:'</strong>'});
@@ -78,37 +80,75 @@ var parseWorkshopInfo = function(html) {
     var whoAndWhen = parseHtml(html, {startPattern:'<em>'
                                 , endPattern:'</em>'});
     whoAndWhen = whoAndWhen.split('<br />');
+
     html = html.replace(/<em>.*<\/em>/, '');
 
     var description = parseHtml(html, {startPattern:'<br />'
                                        , endPattern:'<br />'});
     html = html.replace(/<br \/>.*<br \/>/, '');
 
-    // var presenter = parseHtml(html, {startPattern:'<em>'
-    //                                  , endPattern:'<br />'});
-
-    // var classSize = parseHtml(html, {startPattern:'<br />\nTarget'
-    //                                  , endPattern:'<br />'
-    //                                  , removePattern:'<br />\n'});
-
     workshop.title = title;
     workshop.description = description;
 
+    console.log(title);
+    console.log(whoAndWhen);
+    var when = parseWhoAndWhen(whoAndWhen);
+    console.log(when);
+    console.log();
 
-    workshop.whoAndWhen = whoAndWhen;
-    // if (classSize) {
-    //     workshop.description += " " + classSize;
-    // }
-    // workshop.when = when;
     return workshop;
 };
 
-var map = function(list, callback) {
+var parseWhoAndWhen = function(arr) {
+    var times = parseWhens(arr);
+    console.log(filter(times, containsPresenter));
+    return times;
+};
+
+var parseWhens = function (arr) {
+    var whens = [];
+    var i = 0;
+    while (i<arr.length) {
+        if(containsTime(arr[i])) {
+            whens.push({when:arr[i]});
+        }
+        i++;
+    }
+    return whens;
+};
+
+var containsTime = function(str) {
+    var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return containsOne(days, str);
+};
+
+var containsPresenter = function(str) {
+    var keywords = ['Presented by', 'With'];
+    return containsOne(keywords, str);
+};
+
+var containsOne = function(arr, str) {
+    var i = 0;
+    while (i < arr.length) {
+        if(str.when) {
+            console.log("str", str);
+        }
+        if(str.indexOf(arr[i]) > -1) {
+            return true;
+        }
+        i++;
+    }
+    return false;
+};
+
+var filter = function(list, func) {
     var i = 0;
     var i_end = list.length;
     var new_list = [];
     while(i < i_end) {
-        new_list.push(callback(list[i]));
+        if(func(list[i])) {
+            new_list.push(list[i]);
+        }
         i++;
     }
     return new_list;
@@ -125,7 +165,7 @@ http.get(url, function(response) {
                                         , removePattern:'<td>'
                                         , multiple:true});
         var workshops = map(rawWorkshops, parseWorkshopInfo);
-        console.log(workshops);
+//        console.log(workshops);
         return xml;
     }));
 });

@@ -1,0 +1,27 @@
+{
+  "name": "spotcal",
+  "version": "1.0.0",
+  "description": "parses the spot gym's calendar of events and creates google calendar events for them",
+  "main": "spotcal.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mikeholm/spotcal.git"
+  },
+  "keywords": [
+    "spot",
+    "calendar",
+    "google"
+  ],
+  "author": "mikeholm",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mikeholm/spotcal/issues"
+  },
+  "homepage": "https://github.com/mikeholm/spotcal",
+  "devDependencies": {
+    "jest-cli": "^0.2.0"
+  }
+}
